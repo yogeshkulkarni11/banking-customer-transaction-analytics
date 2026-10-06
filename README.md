@@ -4,60 +4,62 @@ A portfolio-ready **Data Engineering** project demonstrating **PySpark + Medalli
 
 ## Business Objective
 
-Build a reliable analytics pipeline that ingests customer, account and transaction data, applies data-quality rules and transformations, and produces business-ready Gold datasets for customer 360, transaction trends, spending analysis and account KPIs.
+Build a reliable analytics pipeline that ingests customer, account and transaction data, applies a quality gate, enriches transaction data and produces business-ready Gold datasets for customer 360, transaction trends, spending analysis and account KPIs.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    A[customers.csv] --> B[Bronze]
-    C[accounts.csv] --> B
-    D[transactions.csv] --> B
-    B --> E[Silver: Clean + Validate + Join]
-    E --> F[Gold: Customer 360]
-    E --> G[Gold: Monthly Trends]
-    E --> H[Gold: Spending Analysis]
-    E --> I[Gold: Account KPIs]
-    E --> J[Data Quality Results]
+    A[Customers CSV] --> B[Bronze]
+    C[Accounts CSV] --> B
+    D[Transactions CSV] --> B
+    B --> E[Silver: Clean + Standardize]
+    E --> Q{Data Quality Gate}
+    Q -->|Pass| F[Gold Analytics]
+    Q -->|Fail| X[Stop Pipeline]
+    F --> G[Customer 360]
+    F --> H[Monthly Trends + MoM]
+    F --> I[Spending + Ranking]
+    F --> J[Account KPIs]
+    F --> K[Category Analysis]
 ```
 
 ## Tech Stack
 
 - Python 3.10+
 - PySpark 3.5+
-- pandas for lightweight inspection
 - pytest
 - GitHub Actions
 - Medallion Architecture
-- SQL-style analytics using DataFrame APIs and Spark SQL concepts
+- DataFrame API / Spark SQL concepts
 
 ## Repository Structure
 
 ```text
 banking-customer-transaction-analytics/
-├── data/raw/                         # synthetic input data
-├── notebooks/                        # executable learning/pipeline scripts
+├── data/raw/                         # synthetic source data
+├── notebooks/                        # Bronze/Silver/Gold demos + end-to-end pipeline
 ├── src/
-│   ├── bronze/                       # ingestion
-│   ├── silver/                       # cleansing + business transformations
-│   ├── gold/                         # analytics datasets
+│   ├── bronze/                       # ingestion + metadata
+│   ├── silver/                       # cleansing + enrichment
+│   ├── gold/                         # business analytics
 │   ├── quality/                      # data-quality rules
-│   └── utils/                        # Spark/session helpers
-├── tests/                            # unit/integration-style tests
+│   └── utils/                        # Spark session helper
+├── tests/                            # PySpark unit tests
 ├── docs/                             # business, data dictionary, Azure mapping
-├── architecture/                     # architecture documentation
-├── .github/workflows/tests.yml       # CI
+├── architecture/                     # Medallion architecture
+├── .github/workflows/tests.yml       # CI quality gate
 ├── requirements.txt
 └── README.md
 ```
 
 ## Medallion Flow
 
-**Bronze:** preserve source structure and add ingestion metadata.
+**Bronze** preserves source attributes and adds ingestion metadata.
 
-**Silver:** standardize columns/types, remove invalid records, deduplicate, enrich transactions with customer/account attributes, and derive business fields.
+**Silver** standardizes dates and numeric fields, removes duplicate business keys, validates identifiers and amounts, excludes failed transactions from analytics, and enriches transactions through customer/account joins.
 
-**Gold:** create analytics-ready datasets:
+**Gold** provides purpose-built datasets:
 
 1. `customer_360`
 2. `monthly_transaction_trends`
@@ -65,31 +67,47 @@ banking-customer-transaction-analytics/
 4. `account_kpis`
 5. `category_analysis`
 
-## Key PySpark Concepts Demonstrated
+## Data Quality Gate
 
-- Explicit schemas
+The pipeline validates:
+
+- Required fields are not null
+- Customer/account/transaction business keys are unique
+- Transaction amounts are non-negative
+- Account → Customer referential integrity
+- Transaction → Account referential integrity
+- Transaction → Customer referential integrity
+- Transaction status is `Success` or `Failed`
+- Transaction type is `Debit` or `Credit`
+- Transaction table is not empty
+
+Failed quality checks stop the Gold pipeline instead of publishing potentially incorrect analytics.
+
+## Advanced PySpark Concepts Demonstrated
+
 - CSV ingestion
-- Column transformations
-- Data cleansing
-- Null handling
+- DataFrame transformations
+- Type casting and date normalization
 - Deduplication
 - Multi-table joins
-- Aggregations
+- Aggregations and conditional aggregation
 - Window functions
-- `row_number`, `rank`, `dense_rank`
-- Running totals
-- Month-over-month analysis
-- Conditional aggregation
-- Data-quality validation
-- Reusable pipeline functions
-- Unit testing
+- `dense_rank` for customer spending ranking
+- `lag` for month-over-month comparison
+- Running totals with window frames
+- Referential-integrity validation
+- Reusable transformation functions
+- Automated PySpark unit tests
+- CI/CD quality gate
 
 ## Run Locally
 
 ```bash
 python -m venv .venv
+
 # Windows
 .venv\Scripts\activate
+
 # Linux/macOS
 source .venv/bin/activate
 
@@ -98,25 +116,69 @@ pytest -q
 python notebooks/04_end_to_end_pipeline.py
 ```
 
-The pipeline writes Gold output under `output/` (ignored by Git).
+The pipeline writes Gold CSV outputs under `output/`, which is intentionally excluded from Git.
+
+## Gold Analytics Examples
+
+### Customer 360
+Combines customer profile, account count, total balance, transaction count, debit, credit and net transaction value.
+
+### Monthly Transaction Trends
+Provides monthly transaction count/value, average transaction value, previous-month value, MoM percentage change and running transaction value.
+
+### Customer Spending
+Ranks customers by successful debit spending using a Spark window function.
+
+### Account KPIs
+Aggregates account count and balances by account type and status.
+
+### Category Analysis
+Identifies the transaction categories driving debit spending.
 
 ## Example Business Questions
 
-- Who are the top customers by transaction value?
+- Who are the top customers by debit spending?
 - What is monthly transaction volume and value?
+- How did transaction value change month over month?
 - Which transaction categories drive spending?
-- What is the average account balance by customer segment?
 - Which customers have the highest number of transactions?
-- What is the month-over-month change in transaction value?
+- What is the total balance by account type?
 
-## Azure Databricks Mapping
+## Azure Databricks Production Mapping
 
-The same design maps naturally to Azure Databricks with ADLS Gen2 as storage, Delta Lake for Bronze/Silver/Gold tables, Unity Catalog for governance, Azure Key Vault for secrets and Azure Data Factory/Workflows for orchestration. See `docs/azure_databricks_mapping.md`.
+| Portfolio implementation | Azure production equivalent |
+|---|---|
+| CSV landing data | ADLS Gen2 landing zone |
+| Bronze DataFrame | Bronze Delta table |
+| Silver DataFrame | Silver Delta table |
+| Gold DataFrame | Gold Delta tables/views |
+| Local Spark | Azure Databricks compute |
+| pytest/GitHub Actions | CI/CD quality gate |
+| Local pipeline | Databricks Workflow / ADF |
+| Local governance logic | Unity Catalog + Purview |
 
-## Important Portfolio Note
+See `docs/azure_databricks_mapping.md` for productionization guidance.
 
-The datasets are **synthetic** and contain no real customer or financial information. The project is designed to demonstrate production-oriented engineering patterns without exposing sensitive data.
+## Productionization Roadmap
+
+For a real banking workload I would additionally introduce:
+
+- Delta Lake and ACID transactions
+- Incremental ingestion and watermarking
+- CDC/upsert handling
+- Quarantine tables for rejected records
+- Data reconciliation against source-system totals
+- Structured logging and pipeline metrics
+- Unity Catalog access controls and lineage
+- Purview governance/catalog integration
+- Parameterized Dev/Test/Prod configurations
+- Databricks Workflows or ADF orchestration
+- Monitoring and alerting
 
 ## Interview Talking Point
 
-> "I designed a three-layer PySpark Medallion pipeline. Bronze preserves source data, Silver enforces quality and business-standard transformations, and Gold exposes purpose-built analytical datasets. I used joins and window functions for customer ranking, running totals and month-over-month analytics, and added automated data-quality checks and CI tests so the pipeline is repeatable and maintainable."
+> "I designed a three-layer PySpark Medallion pipeline. Bronze preserves source data and ingestion metadata, Silver creates trusted standardized data and enforces quality rules, and Gold exposes business-specific analytics. I used joins, conditional aggregations and window functions for customer ranking, running totals and month-over-month analysis. The pipeline also has referential-integrity checks and automated tests, making the design portable to Azure Databricks."
+
+## Portfolio Note
+
+All datasets are **synthetic**. No real customer, account or financial information is used.
