@@ -1,0 +1,12 @@
+account_id,customer_id,account_type,opening_date,balance,status
+A001,C001,Savings,2021-01-15,125000,Active
+A002,C001,Credit,2022-05-10,-18000,Active
+A003,C002,Savings,2022-03-20,78000,Active
+A004,C003,Current,2020-07-11,245000,Active
+A005,C004,Savings,2023-02-08,54000,Active
+A006,C005,Investment,2019-11-23,520000,Active
+A007,C006,Savings,2022-09-05,91000,Active
+A008,C007,Current,2020-05-18,310000,Active
+A009,C008,Savings,2024-01-12,42000,Active
+A010,C009,Investment,2021-06-30,385000,Active
+A011,C010,Savings,2023-07-19,67000,Active
