@@ -1,0 +1,11 @@
+customer_id,customer_name,age,city,customer_segment,join_date
+C001,Aarav Sharma,34,Mumbai,Premium,2021-01-15
+C002,Diya Patil,29,Pune,Standard,2022-03-20
+C003,Rohan Kulkarni,42,Bengaluru,Premium,2020-07-11
+C004,Ananya Deshmukh,37,Hyderabad,Standard,2023-02-08
+C005,Vikram Mehta,51,Delhi,Premium,2019-11-23
+C006,Neha Joshi,31,Pune,Standard,2022-09-05
+C007,Aditya Rao,45,Chennai,Premium,2020-05-18
+C008,Isha Shah,27,Mumbai,Standard,2024-01-12
+C009,Karan Singh,39,Delhi,Premium,2021-06-30
+C010,Sneha Nair,33,Kochi,Standard,2023-07-19
