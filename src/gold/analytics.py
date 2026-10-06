@@ -18,11 +18,33 @@ def customer_360(customers: DataFrame, accounts: DataFrame, transactions: DataFr
 
 
 def monthly_transaction_trends(transactions: DataFrame) -> DataFrame:
-    return transactions.groupBy("transaction_month", "transaction_type").agg(
+    monthly = transactions.groupBy("transaction_month", "transaction_type").agg(
         F.count("transaction_id").alias("transaction_count"),
         F.sum("amount").alias("transaction_value"),
         F.avg("amount").alias("average_transaction_value"),
-    ).orderBy("transaction_month", "transaction_type")
+    )
+    trend_window = Window.partitionBy("transaction_type").orderBy("transaction_month")
+    return (
+        monthly
+        .withColumn("previous_month_value", F.lag("transaction_value").over(trend_window))
+        .withColumn(
+            "mom_change_pct",
+            F.when(
+                F.col("previous_month_value").isNull() | (F.col("previous_month_value") == 0),
+                F.lit(None).cast("double"),
+            ).otherwise(
+                (F.col("transaction_value") - F.col("previous_month_value"))
+                / F.col("previous_month_value") * 100
+            ),
+        )
+        .withColumn(
+            "running_transaction_value",
+            F.sum("transaction_value").over(
+                trend_window.rowsBetween(Window.unboundedPreceding, Window.currentRow)
+            ),
+        )
+        .orderBy("transaction_month", "transaction_type")
+    )
 
 
 def customer_spending_analysis(transactions: DataFrame) -> DataFrame:
@@ -30,7 +52,10 @@ def customer_spending_analysis(transactions: DataFrame) -> DataFrame:
     w = Window.orderBy(F.desc("total_spend"))
     return (
         debit.groupBy("customer_id", "customer_name", "customer_segment")
-        .agg(F.sum("amount").alias("total_spend"), F.count("transaction_id").alias("debit_count"))
+        .agg(
+            F.sum("amount").alias("total_spend"),
+            F.count("transaction_id").alias("debit_count"),
+        )
         .withColumn("spend_rank", F.dense_rank().over(w))
         .orderBy("spend_rank")
     )
